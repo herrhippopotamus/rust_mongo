@@ -10,5 +10,5 @@ serde_json = "1"
 mongodb = "3.9.1"
 
 [lib]
-name = "lib"
+name = "mongo"
 path = "src/lib/lib.rs"
