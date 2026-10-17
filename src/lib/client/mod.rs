@@ -1,5 +1,5 @@
 use anyhow::Result;
-use mongodb::{Client, bson::Document, options::ClientOptions};
+use mongodb::{Client, bson::Document, bson::doc, options::ClientOptions};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 #[derive(Clone, Debug)]
@@ -34,6 +34,10 @@ pub type MongoCredentials = Credentials;
 pub trait Doc: Serialize + DeserializeOwned + Send + Sync {}
 impl<T: Serialize + DeserializeOwned + Send + Sync> Doc for T {}
 
+pub trait Id {
+    fn id(&self) -> &str;
+}
+
 pub struct Mongo {
     credentials: Credentials,
     client: Client,
@@ -64,6 +68,7 @@ impl Mongo {
         }
     }
 }
+
 impl<'a> Collection<'a> {
     fn collection<T: Doc>(&self) -> mongodb::Collection<T> {
         self.mongo
@@ -76,6 +81,13 @@ impl<'a> Collection<'a> {
         let update: Document = serde_json::from_str(update).unwrap_or_default();
         self.collection::<Document>()
             .update_many(filter, update)
+            .await?;
+        Ok(self)
+    }
+    pub async fn upsert<T: Doc + Id>(&'a self, doc: &T) -> Result<&'a Self> {
+        self.collection::<T>()
+            .replace_one(doc! { "id": doc.id() }, doc)
+            .upsert(true)
             .await?;
         Ok(self)
     }
